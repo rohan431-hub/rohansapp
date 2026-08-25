@@ -1,39 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuthenticator } from '@aws-amplify/ui-react';
+import { Amplify } from 'aws-amplify';
+import { generateClient } from 'aws-amplify/data';
+import outputs from '../amplify_outputs.json';
+
+Amplify.configure(outputs);
+const client = generateClient();
 
 export default function App() {
+  const { user, signOut } = useAuthenticator();
+  const [profiles, setProfiles] = useState([]);
   const [status, setStatus] = useState('');
 
-  async function submitFeedback(e) {
-    e.preventDefault();
-    setStatus('Submitting feedback...');
-    // We will connect this to AWS in the next phases
-    setTimeout(() => setStatus('Feedback submitted successfully! (Test mode)'), 1000);
+  useEffect(() => {
+    fetchProfiles();
+  }, []);
+
+  async function fetchProfiles() {
+    try {
+      const { data: items } = await client.models.UserProfile.list();
+      setProfiles(items);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+    }
   }
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'Arial', maxWidth: '400px', margin: '0 auto' }}>
-      <h2>Submit Feedback</h2>
-      <form onSubmit={submitFeedback} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <label>Your Name:
-          <input type="text" required style={{ width: '100%', padding: '8px' }} />
-        </label>
-        <label>Rating (1-5):
-          <select style={{ width: '100%', padding: '8px' }}>
-            <option value="5">5 - Excellent</option>
-            <option value="4">4 - Good</option>
-            <option value="3">3 - Average</option>
-            <option value="2">2 - Poor</option>
-            <option value="1">1 - Terrible</option>
-          </select>
-        </label>
-        <label>Comments:
-          <textarea required style={{ width: '100%', padding: '8px', height: '80px' }}></textarea>
-        </label>
-        <button type="submit" style={{ padding: '10px', backgroundColor: '#0073bb', color: 'white', border: 'none', cursor: 'pointer' }}>
-          Send Feedback
-        </button>
-      </form>
-      <p style={{ fontWeight: 'bold', marginTop: '1rem' }}>{status}</p>
+    <main className="card" style={{ maxWidth: '450px', margin: '2rem auto', textAlign: 'center' }}>
+      <h1>Feedback Collector</h1>
+      <p>Logged in as: <strong>{user?.signInDetails?.loginId || user?.username}</strong></p>
+
+      <section style={{ margin: '1.5rem 0', textAlign: 'left', background: '#f0f4f8', padding: '1rem', borderRadius: '6px' }}>
+        <h3>Registered User Profiles:</h3>
+        {profiles.length === 0 ? (
+          <p>No confirmed profiles yet.</p>
+        ) : (
+          <ul>
+            {profiles.map((p) => (
+              <li key={p.id}>{p.email}</li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <button 
+        onClick={signOut} 
+        style={{ padding: '10px 20px', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+      >
+        Sign Out
+      </button>
     </main>
   );
 }
